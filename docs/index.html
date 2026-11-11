@@ -159,6 +159,10 @@ var advTimer=null;
 var TOUCH=!!(window.matchMedia&&matchMedia("(hover: none)").matches);
 var HEAR_HINT=TOUCH?"Tap to hear it":"Press space to hear it";
 if(!TOUCH){$("hear").textContent+=" (space)";$("next").innerHTML+=" (&rarr;)"}
+function unlockSpeech(){
+  // Mobile browsers only allow speech after a tap; a silent utterance on Start unlocks it.
+  try{if("speechSynthesis" in window){var u=new SpeechSynthesisUtterance(" ");u.volume=0;speechSynthesis.speak(u)}}catch(e){}
+}
 function num(id,d,lo,hi){var v=parseFloat($(id).value);if(isNaN(v))v=d;return Math.max(lo,Math.min(hi,v))}
 var words=[],queue=[],idx=0,ready=false,mode="random",cats=[],usedCats=[],curCat="",timer=null,voice=null;
 
@@ -249,17 +253,27 @@ function pickVoice(){
 if("speechSynthesis" in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
 
 function speak(){
-  if(!("speechSynthesis" in window)){$("msg").textContent="Speech isn’t supported in this browser.";return}
-  speechSynthesis.cancel();
+  if(!("speechSynthesis" in window)){$("msg").textContent="Speech isn’t supported in this browser.";return false}
+  var s=window.speechSynthesis;
+  if(s.paused)s.resume();
   var u=new SpeechSynthesisUtterance(queue[idx].w);
-  u.lang="en-US";u.rate=0.8;if(voice)u.voice=voice;
-  speechSynthesis.speak(u);
+  u.lang="en-US";u.rate=0.8;
+  if(voice&&!TOUCH)u.voice=voice;
+  u.onerror=function(e){
+    if(e.error==="canceled"||e.error==="interrupted")return;
+    $("msg").textContent="The sound didn’t play ("+e.error+"). Check the volume and the silent switch.";
+  };
+  window.lastUtterance=u; // keep a reference so the browser doesn’t drop it
+  if(s.speaking||s.pending){s.cancel();setTimeout(function(){s.speak(u)},80)}
+  else s.speak(u);
+  return true;
 }
 
 function start(m){
   words=parse($("list").value);
   if(!words.length){$("err").textContent="Add at least one word first, like: cat, Animals";return}
   $("err").textContent="";
+  unlockSpeech();
   if(curId.charAt(0)!=="b")saveList(true);
   mode=m;
   if(m==="random"){queue=shuffle(words);curCat=""}
@@ -301,7 +315,7 @@ function showWord(){
 }
 function hear(){
   if(!ready)return;
-  speak();
+  if(!speak())return;
   var a=num("autoSecs",4,0,60);
   clearTimeout(advTimer);
   if(a>0){advTimer=setTimeout(next,a*1000);$("msg").textContent="Next word in "+a+" seconds… "+(TOUCH?"tap":"press space")+" to hear it again."}
