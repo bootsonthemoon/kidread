@@ -12,7 +12,7 @@ box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:en
 :root[data-theme="dark"]{--bg:#101a3a;--card:#1a2750;--ink:#eef3ff;--soft:#9db0e6;--accent:#ffc533;--accent-ink:#3a2a00;--go:#4fd09a;--line:#34447e;--field:#121d42;color-scheme:dark}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *,*::before,*::after{box-sizing:inherit}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:"Baloo 2","Trebuchet MS","Comic Sans MS",system-ui,sans-serif;font-weight:500;min-height:100vh}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Baloo 2","Trebuchet MS","Comic Sans MS",system-ui,sans-serif;font-weight:500;min-height:100vh;min-height:100dvh;-webkit-text-size-adjust:100%}
 main{max-width:760px;margin:0 auto;padding:20px 16px 40px}
 h1{font-size:clamp(1.8rem,6vw,2.6rem);font-weight:800;margin:8px 0 4px}
 p.lead{color:var(--soft);margin:0 0 18px;font-size:1.05rem}
@@ -35,13 +35,29 @@ select:focus-visible{outline:4px solid var(--go);outline-offset:2px}
 #intro .lead{margin:0;font-size:1.4rem}
 .top{display:flex;justify-content:space-between;align-items:center;color:var(--soft);font-weight:700;gap:8px;margin-bottom:12px}
 .chip{background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:2px 14px}
-.stage{background:var(--card);border:3px solid var(--line);border-radius:28px;padding:24px 12px 20px;min-height:55vh;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:20px}
+.stage{background:var(--card);border:3px solid var(--line);border-radius:28px;padding:24px 12px 20px;min-height:60vh;min-height:60dvh;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:20px}
 #word{font-size:clamp(3.2rem,20vw,9rem);font-weight:800;line-height:1.05;word-break:break-word;margin:0}
 .bar{width:min(420px,80%);height:14px;border-radius:99px;background:var(--field);border:2px solid var(--line);overflow:hidden}
 .bar i{display:block;height:100%;width:0;background:var(--go)}
 #msg{font-size:1.3rem;font-weight:700;color:var(--soft);min-height:1.8em}
 #msg.ready{color:var(--go)}
 .actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+button,.stage{-webkit-tap-highlight-color:transparent}
+button{touch-action:manipulation;min-height:48px}
+input[type=file]{max-width:100%;font:inherit}
+.stage{user-select:none;-webkit-user-select:none;cursor:pointer;touch-action:pan-y}
+#hear{font-size:1.5rem;padding:16px 28px;min-width:min(320px,100%)}
+@media (max-width:520px){
+  main{padding:12px 12px 28px}
+  .panel{padding:14px;border-radius:18px}
+  .row{gap:10px}
+  #goRandom,#goCat{flex:1 1 100%}
+  #saveList,#delList{flex:1 1 0}
+  .stage{padding:18px 10px;border-radius:22px;gap:16px}
+  .actions{flex-direction:column;width:100%;align-items:stretch;padding:0 6px}
+  #hear,#next{width:100%}
+  .top{flex-wrap:wrap;justify-content:center}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 </head>
@@ -93,8 +109,8 @@ select:focus-visible{outline:4px solid var(--go);outline-offset:2px}
     <div class="bar" aria-hidden="true"><i id="fill"></i></div>
     <div id="msg"></div>
     <div class="actions">
-      <button id="hear" disabled>Hear it (space)</button>
-      <button id="next" class="alt" disabled>Next word (&rarr;)</button>
+      <button id="hear" disabled>Hear it</button>
+      <button id="next" class="alt" disabled>Next word</button>
     </div>
   </div>
 </section>
@@ -140,6 +156,9 @@ they, Tricky words
 have, Tricky words`}
 ];
 var advTimer=null;
+var TOUCH=!!(window.matchMedia&&matchMedia("(hover: none)").matches);
+var HEAR_HINT=TOUCH?"Tap to hear it":"Press space to hear it";
+if(!TOUCH){$("hear").textContent+=" (space)";$("next").innerHTML+=" (&rarr;)"}
 function num(id,d,lo,hi){var v=parseFloat($(id).value);if(isNaN(v))v=d;return Math.max(lo,Math.min(hi,v))}
 var words=[],queue=[],idx=0,ready=false,mode="random",cats=[],usedCats=[],curCat="",timer=null,voice=null;
 
@@ -277,7 +296,7 @@ function showWord(){
   f.style.transition="width "+secs+"s linear";f.style.width="100%";
   timer=setTimeout(function(){
     ready=true;$("hear").disabled=false;$("next").disabled=false;
-    $("msg").className="ready";$("msg").textContent="Press space to hear it!";
+    $("msg").className="ready";$("msg").textContent=HEAR_HINT+"!";
   },secs*1000);
 }
 function hear(){
@@ -285,8 +304,8 @@ function hear(){
   speak();
   var a=num("autoSecs",4,0,60);
   clearTimeout(advTimer);
-  if(a>0){advTimer=setTimeout(next,a*1000);$("msg").textContent="Next word in "+a+" seconds… press space to hear it again."}
-  else{$("msg").textContent="Press space to hear it again, or → for the next word."}
+  if(a>0){advTimer=setTimeout(next,a*1000);$("msg").textContent="Next word in "+a+" seconds… "+(TOUCH?"tap":"press space")+" to hear it again."}
+  else{$("msg").textContent=TOUCH?"Tap to hear it again, or swipe left for the next word.":"Press space to hear it again, or → for the next word."}
 }
 function next(){
   if(!ready)return;
@@ -316,6 +335,10 @@ function quit(){clearTimeout(timer);clearTimeout(advTimer);ready=false;speechSyn
 $("goRandom").onclick=function(){start("random")};
 $("goCat").onclick=function(){start("category")};
 $("hear").onclick=hear;$("next").onclick=next;$("quit").onclick=quit;
+var stage=document.querySelector("#card .stage"),sx=null;
+stage.addEventListener("click",function(e){if(e.target.closest("button"))return;hear()});
+stage.addEventListener("touchstart",function(e){sx=e.touches[0].clientX},{passive:true});
+stage.addEventListener("touchend",function(e){if(sx===null)return;var dx=e.changedTouches[0].clientX-sx;sx=null;if(dx<-60)next()},{passive:true});
 $("againCat").onclick=nextCategory;$("again").onclick=quit;$("introStop").onclick=quit;
 $("file").onchange=function(e){
   var f=e.target.files[0];if(!f)return;
