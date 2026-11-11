@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Word Flashcards</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#d6ecff;--card:#fff;--ink:#1c2a5e;--soft:#5b6a9a;--accent:#ffc533;--accent-ink:#3a2a00;--go:#2f9e6b;--line:#b7d3f0;--field:#f3f9ff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#101a3a;--card:#1a2750;--ink:#eef3ff;--soft:#9db0e6;--accent:#ffc533;--accent-ink:#3a2a00;--go:#4fd09a;--line:#34447e;--field:#121d42;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#101a3a;--card:#1a2750;--ink:#eef3ff;--soft:#9db0e6;--accent:#ffc533;--accent-ink:#3a2a00;--go:#4fd09a;--line:#34447e;--field:#121d42;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Baloo 2","Trebuchet MS","Comic Sans MS",system-ui,sans-serif;font-weight:500;min-height:100vh}
+main{max-width:760px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:clamp(1.8rem,6vw,2.6rem);font-weight:800;margin:8px 0 4px}
+p.lead{color:var(--soft);margin:0 0 18px;font-size:1.05rem}
+.panel{background:var(--card);border:3px solid var(--line);border-radius:22px;padding:18px}
+label{display:block;font-weight:700;margin-bottom:6px}
+textarea{width:100%;min-height:200px;border:3px solid var(--line);border-radius:14px;background:var(--field);color:var(--ink);font:inherit;font-size:1.05rem;padding:12px;resize:vertical}
+.hint{color:var(--soft);font-size:.95rem;margin:6px 0 14px}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-top:14px}
+button{font:inherit;font-weight:700;font-size:1.15rem;border:0;border-radius:16px;padding:12px 22px;cursor:pointer;background:var(--accent);color:var(--accent-ink);box-shadow:0 4px 0 rgba(0,0,0,.2)}
+button:active{transform:translateY(3px);box-shadow:0 1px 0 rgba(0,0,0,.2)}
+button.alt{background:var(--field);color:var(--ink);border:3px solid var(--line);box-shadow:none}
+button:disabled{opacity:.45;cursor:not-allowed}
+button:focus-visible,textarea:focus-visible,input:focus-visible{outline:4px solid var(--go);outline-offset:2px}
+input[type=number]{width:4.5em;font:inherit;font-size:1.05rem;padding:6px 8px;border:3px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink)}
+select,input[type=text]{width:100%;font:inherit;font-size:1.05rem;padding:10px 12px;border:3px solid var(--line);border-radius:12px;background:var(--field);color:var(--ink)}
+select:focus-visible{outline:4px solid var(--go);outline-offset:2px}
+.err{color:#d6336c;font-weight:700;min-height:1.4em;margin-top:8px}
+#card,#done,#intro{display:none;text-align:center}
+#introName{font-size:clamp(2.6rem,14vw,7rem);font-weight:800;line-height:1.1;margin:0;word-break:break-word}
+#intro .lead{margin:0;font-size:1.4rem}
+.top{display:flex;justify-content:space-between;align-items:center;color:var(--soft);font-weight:700;gap:8px;margin-bottom:12px}
+.chip{background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:2px 14px}
+.stage{background:var(--card);border:3px solid var(--line);border-radius:28px;padding:24px 12px 20px;min-height:55vh;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:20px}
+#word{font-size:clamp(3.2rem,20vw,9rem);font-weight:800;line-height:1.05;word-break:break-word;margin:0}
+.bar{width:min(420px,80%);height:14px;border-radius:99px;background:var(--field);border:2px solid var(--line);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--go)}
+#msg{font-size:1.3rem;font-weight:700;color:var(--soft);min-height:1.8em}
+#msg.ready{color:var(--go)}
+.actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+<section id="setup">
+  <h1>Word Flashcards</h1>
+  <p class="lead">Add words, pick a mode, and let the reading begin.</p>
+  <div class="panel">
+    <label for="listSel">Word list</label>
+    <select id="listSel"></select>
+    <label for="listName" style="margin-top:14px">List name</label>
+    <input type="text" id="listName" maxlength="60" placeholder="e.g. Week 3 spelling">
+    <label for="list" style="margin-top:14px">Words</label>
+    <textarea id="list" spellcheck="false" placeholder="word, category"></textarea>
+    <p class="hint">One word per line, written as <b>word, category</b>. Paste a new list or load a .csv or .txt file. Lists you save stay in this browser.</p>
+    <div class="row">
+      <button class="alt" id="saveList">Save list</button>
+      <button class="alt" id="delList">Delete list</button>
+      <span id="listStatus" style="color:var(--soft);font-weight:700"></span>
+    </div>
+    <div class="row">
+      <input type="file" id="file" accept=".csv,.txt,text/plain,text/csv" aria-label="Load a word file">
+    </div>
+    <div class="row">
+      <label for="secs" style="margin:0">Show each word for at least</label>
+      <input type="number" id="secs" min="5" max="60" value="5"> <span>seconds</span>
+    </div>
+    <div class="row">
+      <label for="introSecs" style="margin:0">Show each category name for</label>
+      <input type="number" id="introSecs" min="1" max="30" value="4"> <span>seconds</span>
+    </div>
+    <div class="row">
+      <label for="autoSecs" style="margin:0">After a word is read, move on after</label>
+      <input type="number" id="autoSecs" min="0" max="60" value="4"> <span>seconds (0 = wait for me)</span>
+    </div>
+    <div class="row">
+      <button id="goRandom">Random words</button>
+      <button id="goCat">One category at a time</button>
+    </div>
+    <div class="err" id="err" role="alert"></div>
+  </div>
+</section>
+
+<section id="card">
+  <div class="top"><button class="alt" id="quit" style="padding:6px 14px;font-size:1rem">Stop</button><span id="cat" class="chip"></span><span id="count"></span></div>
+  <div class="stage">
+    <p id="word" aria-live="polite"></p>
+    <div class="bar" aria-hidden="true"><i id="fill"></i></div>
+    <div id="msg"></div>
+    <div class="actions">
+      <button id="hear" disabled>Hear it (space)</button>
+      <button id="next" class="alt" disabled>Next word (&rarr;)</button>
+    </div>
+  </div>
+</section>
+
+<section id="done">
+  <div class="stage">
+    <h1 id="doneTitle">All done!</h1>
+    <p class="lead" id="doneSub"></p>
+    <div class="actions">
+      <button id="againCat">Next category</button>
+      <button id="again" class="alt">Back to start</button>
+    </div>
+  </div>
+</section>
+
+<section id="intro" aria-live="polite">
+  <div class="stage">
+    <p class="lead">Next category</p>
+    <p id="introName"></p>
+    <button class="alt" id="introStop" style="padding:6px 14px;font-size:1rem">Stop</button>
+  </div>
+</section>
+</main>
+
+<script>
+(function(){
+var $=function(id){return document.getElementById(id)};
+var SAMPLE="cat, Animals\ndog, Animals\nfish, Animals\nbird, Animals\nred, Colors\nblue, Colors\ngreen, Colors\nyellow, Colors\napple, Food\nbread, Food\nmilk, Food\ncake, Food\nsun, Nature\ntree, Nature\nrain, Nature";
+var KEY="wordflash.list";
+// Built-in word lists. To add one, add another { name, text } entry (one "word, category" per line).
+var BUILTIN_LISTS=[
+  {name:"Starter words",text:SAMPLE},
+  {name:"Sight words",text:`the, Little words
+and, Little words
+is, Little words
+it, Little words
+in, Little words
+was, Tricky words
+said, Tricky words
+you, Tricky words
+were, Tricky words
+they, Tricky words
+have, Tricky words`}
+];
+var advTimer=null;
+function num(id,d,lo,hi){var v=parseFloat($(id).value);if(isNaN(v))v=d;return Math.max(lo,Math.min(hi,v))}
+var words=[],queue=[],idx=0,ready=false,mode="random",cats=[],usedCats=[],curCat="",timer=null,voice=null;
+
+var userLists=[],curId="b0";
+function store(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/"/g,"&quot;")}
+function loadLists(){
+  try{
+    var raw=localStorage.getItem("wordflash.lists");
+    if(raw)userLists=JSON.parse(raw)||[];
+    else{var old=localStorage.getItem(KEY);if(old)userLists=[{id:"u1",name:"My words",text:old}]}
+    curId=localStorage.getItem("wordflash.cur")||"b0";
+  }catch(e){userLists=[];curId="b0"}
+}
+function findList(id){
+  if(id.charAt(0)==="b"){var b=BUILTIN_LISTS[+id.slice(1)];return b&&{id:id,name:b.name,text:b.text}}
+  return userLists.filter(function(l){return l.id===id})[0];
+}
+function renderSel(){
+  var h='<option value="new">+ New list (paste words)</option><optgroup label="Built-in">';
+  BUILTIN_LISTS.forEach(function(b,i){h+='<option value="b'+i+'">'+esc(b.name)+'</option>'});
+  h+='</optgroup>';
+  if(userLists.length){
+    h+='<optgroup label="My lists">';
+    userLists.forEach(function(l){h+='<option value="'+l.id+'">'+esc(l.name)+'</option>'});
+    h+='</optgroup>';
+  }
+  $("listSel").innerHTML=h;$("listSel").value=curId;
+}
+function pick(id){
+  var l=id==="new"?null:findList(id);
+  if(!l)id="new";
+  curId=id;store("wordflash.cur",id);
+  $("listName").value=l?l.name:"";
+  $("list").value=l?l.text:"";
+  $("delList").disabled=(id==="new"||id.charAt(0)==="b");
+  $("listStatus").textContent="";
+  renderSel();
+}
+function saveList(quiet){
+  var text=$("list").value,name=$("listName").value.trim();
+  if(!text.trim())return;
+  var l=curId.charAt(0)==="u"?findList(curId):null;
+  if(!name)name=l?l.name:"My list "+(userLists.length+1);
+  if(BUILTIN_LISTS.some(function(b){return b.name===name}))name+=" (mine)";
+  if(!l){l={id:"u"+Date.now()};userLists.push(l)}
+  l.name=name;l.text=text;
+  store("wordflash.lists",JSON.stringify(userLists));
+  $("listName").value=name;
+  curId=l.id;store("wordflash.cur",curId);
+  $("delList").disabled=false;
+  renderSel();
+  if(!quiet)$("listStatus").textContent="Saved “"+name+"”.";
+}
+function deleteList(){
+  if(curId.charAt(0)!=="u")return;
+  var id=curId,l=findList(id);
+  userLists=userLists.filter(function(x){return x.id!==id});
+  store("wordflash.lists",JSON.stringify(userLists));
+  pick("b0");
+  $("listStatus").textContent="Deleted “"+(l?l.name:"")+"”.";
+}
+$("listSel").onchange=function(){var t=this.value;if(curId.charAt(0)!=="b")saveList(true);pick(t)};
+$("saveList").onclick=function(){saveList(false)};
+$("delList").onclick=deleteList;
+loadLists();pick(curId);
+
+function parse(t){
+  var out=[];
+  t.split(/\r?\n/).forEach(function(line){
+    line=line.trim(); if(!line)return;
+    var i=line.search(/[,\t]/), w, c;
+    if(i<0){w=line;c=""}else{w=line.slice(0,i);c=line.slice(i+1)}
+    w=w.replace(/^["']|["']$/g,"").trim(); c=c.replace(/^["']|["']$/g,"").trim();
+    if(w.toLowerCase()==="word"&&out.length===0&&/categor/i.test(c))return;
+    if(w)out.push({w:w,c:c||"Everything else"});
+  });
+  return out;
+}
+function shuffle(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
+function show(id){["setup","card","intro","done"].forEach(function(s){$(s).style.display=(s===id)?"block":"none"})}
+
+function pickVoice(){
+  if(!("speechSynthesis" in window))return;
+  var vs=speechSynthesis.getVoices();
+  voice=vs.find(function(v){return /^en-US/i.test(v.lang)&&/female|samantha|google|aria|jenny/i.test(v.name)})||vs.find(function(v){return /^en/i.test(v.lang)})||null;
+}
+if("speechSynthesis" in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice}
+
+function speak(){
+  if(!("speechSynthesis" in window)){$("msg").textContent="Speech isn’t supported in this browser.";return}
+  speechSynthesis.cancel();
+  var u=new SpeechSynthesisUtterance(queue[idx].w);
+  u.lang="en-US";u.rate=0.8;if(voice)u.voice=voice;
+  speechSynthesis.speak(u);
+}
+
+function start(m){
+  words=parse($("list").value);
+  if(!words.length){$("err").textContent="Add at least one word first, like: cat, Animals";return}
+  $("err").textContent="";
+  if(curId.charAt(0)!=="b")saveList(true);
+  mode=m;
+  if(m==="random"){queue=shuffle(words);curCat=""}
+  else{cats=[];words.forEach(function(x){if(cats.indexOf(x.c)<0)cats.push(x.c)});usedCats=[];nextCategory();return}
+  idx=0;showWord();
+}
+function nextCategory(){
+  var left=cats.filter(function(c){return usedCats.indexOf(c)<0});
+  if(!left.length){usedCats=[];left=cats.slice()}
+  curCat=left[Math.floor(Math.random()*left.length)];
+  usedCats.push(curCat);
+  queue=shuffle(words.filter(function(x){return x.c===curCat}));
+  idx=0;
+  clearTimeout(timer);
+  speechSynthesis&&speechSynthesis.cancel();
+  $("introName").textContent=curCat;
+  show("intro");
+  timer=setTimeout(showWord,num("introSecs",4,1,30)*1000);
+}
+
+function showWord(){
+  clearTimeout(timer);
+  show("card");
+  var item=queue[idx];
+  ready=false;
+  $("word").textContent=item.w;
+  $("cat").textContent=curCat;$("cat").style.display=curCat?"inline-block":"none";
+  $("count").textContent=(idx+1)+" of "+queue.length;
+  $("hear").disabled=true;$("next").disabled=true;
+  $("msg").className="";$("msg").textContent="Look at the word…";
+  var secs=Math.max(5,Math.min(60,parseInt($("secs").value,10)||5));
+  var f=$("fill");f.style.transition="none";f.style.width="0";
+  void f.offsetWidth;
+  f.style.transition="width "+secs+"s linear";f.style.width="100%";
+  timer=setTimeout(function(){
+    ready=true;$("hear").disabled=false;$("next").disabled=false;
+    $("msg").className="ready";$("msg").textContent="Press space to hear it!";
+  },secs*1000);
+}
+function hear(){
+  if(!ready)return;
+  speak();
+  var a=num("autoSecs",4,0,60);
+  clearTimeout(advTimer);
+  if(a>0){advTimer=setTimeout(next,a*1000);$("msg").textContent="Next word in "+a+" seconds… press space to hear it again."}
+  else{$("msg").textContent="Press space to hear it again, or → for the next word."}
+}
+function next(){
+  if(!ready)return;
+  clearTimeout(advTimer);
+  speechSynthesis&&speechSynthesis.cancel();
+  idx++;
+  if(idx>=queue.length){
+    if(mode==="category"&&usedCats.length<cats.length)return nextCategory();
+    return finish();
+  }
+  showWord();
+}
+function finish(){
+  clearTimeout(timer);show("done");
+  if(mode==="category"){
+    $("doneTitle").textContent="All categories done!";
+    $("doneSub").textContent="You read "+words.length+" words across "+cats.length+" categor"+(cats.length===1?"y":"ies")+".";
+    $("againCat").style.display="none";
+  }else{
+    $("doneTitle").textContent="All done!";
+    $("doneSub").textContent="You read "+queue.length+" word"+(queue.length===1?"":"s")+". Great job!";
+    $("againCat").style.display="none";
+  }
+}
+function quit(){clearTimeout(timer);clearTimeout(advTimer);ready=false;speechSynthesis&&speechSynthesis.cancel();show("setup")}
+
+$("goRandom").onclick=function(){start("random")};
+$("goCat").onclick=function(){start("category")};
+$("hear").onclick=hear;$("next").onclick=next;$("quit").onclick=quit;
+$("againCat").onclick=nextCategory;$("again").onclick=quit;$("introStop").onclick=quit;
+$("file").onchange=function(e){
+  var f=e.target.files[0];if(!f)return;
+  var r=new FileReader();r.onload=function(){
+    if(curId.charAt(0)!=="b")saveList(true);
+    pick("new");
+    $("list").value=r.result;
+    $("listName").value=f.name.replace(/\.[^.]+$/,"");
+  };r.readAsText(f);
+};
+document.addEventListener("keydown",function(e){
+  if($("card").style.display!=="block")return;
+  if(e.code==="Space"){e.preventDefault();if(document.activeElement&&document.activeElement.blur)document.activeElement.blur();if(!e.repeat)hear()}
+  else if(e.code==="ArrowRight"||e.code==="Enter"){e.preventDefault();if(!e.repeat)next()}
+});
+show("setup");
+})();
+</script>
+</body>
+</html>
